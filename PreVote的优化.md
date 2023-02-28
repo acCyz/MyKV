@@ -1,8 +1,9 @@
 # 发生网络隔离，孤立节点会发生什么？
 
 ![image.png](https://cdn.nlark.com/yuque/0/2022/png/29672299/1659522781913-8f614e30-7676-42ee-b921-4f83b66f11b7.png#averageHue=%23fcfcfc&clientId=u830c0ed7-a584-4&from=paste&id=u367b67a9&name=image.png&originHeight=445&originWidth=720&originalType=url&ratio=1&rotation=0&showTitle=false&size=55532&status=done&style=none&taskId=u9c836158-e655-4737-9316-9de2ad81758&title=)
-Follower_2在electionTimeout倒计时结束之前没收到leader的心跳,会发起选举，并转为Candidate。每次发起选举时，会把Term加1。由于网络隔离，它既不会被选成Leader，也不会收到Leader的消息，而是会一直不断地发起选举。它的Term会不断增大。
-一段时间之后，这个节点的Term会变得非常大。在网络恢复之后，这个节点会把它的Term传播到集群的其他节点，导致其他节点更新自己的term，leader也会因为term没有它的大而变为Follower，集群发生一次中断。然后触发重新选主，但这个旧的Follower_2节点由于其日志不是最新，并不会成为Leader。所以，整个集群被这个网络隔离过的旧节点扰乱，leader自动降级为follower，其他follower也易主，更新自己的term，也即集群发生了短暂性的**抖动**，这段时间内集群不可用，显然是需要避免的。
+
+   Follower_2在electionTimeout倒计时结束之前没收到leader的心跳,会发起选举，并转为Candidate。每次发起选举时，会把Term加1。由于网络隔离，它既不会被选成Leader，也不会收到Leader的消息，而是会一直不断地发起选举。它的Term会不断增大。
+   一段时间之后，这个节点的Term会变得非常大。在网络恢复之后，这个节点会把它的Term传播到集群的其他节点，导致其他节点更新自己的term，leader也会因为term没有它的大而变为Follower，集群发生一次中断。然后触发重新选主，但这个旧的Follower_2节点由于其日志不是最新，并不会成为Leader。所以，整个集群被这个网络隔离过的旧节点扰乱，leader自动降级为follower，其他follower也易主，更新自己的term，也即集群发生了短暂性的**抖动**，这段时间内集群不可用，显然是需要避免的。
 解决方案：**两阶段提交思想的PreVote机制**。简而言之，当一个节点触发选举超时，想要发起一轮选举时，并不会立即自增Term，而是先发起一轮“预投票”，只有在该轮预投票获得了大多数节点的投票，才会开启正式的投票并转为新term的Candidate。因此，该机制避免了一个被网络分割的节点不断发起选举自增term的情况，当网络恢复，被分割的少数节点重新加入主网络，也不会扰乱集群。
 
 ## ETCD 源码实现
@@ -11,7 +12,7 @@ Follower_2在electionTimeout倒计时结束之前没收到leader的心跳,会发
 
 ## PreVote流程
 
-整个过程有几个需要额外描述的关键点。首先，**发起PreVote并不会改变发起者的任何状态（包括Term和投票状态）**。这样做的目的是一旦集群中有人发起了正式的选举流程，PreVote不会阻塞正式选举。其次，其他节点在响应PreVote消息时，不会更新自身的投票状态。原因同上。
+   整个过程有几个需要额外描述的关键点。首先，**发起PreVote并不会改变发起者的任何状态（包括Term和投票状态）**。这样做的目的是一旦集群中有人发起了正式的选举流程，PreVote不会阻塞正式选举。其次，其他节点在响应PreVote消息时，不会更新自身的投票状态。原因同上。
 Sender侧：
 
 1. 节点检测到timeout，发起PreVote流程

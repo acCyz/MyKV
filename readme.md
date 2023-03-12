@@ -19,7 +19,7 @@
 - pipeling
 - lease read
 - lab的rpc模块貌似是基于反射实现的模拟，后面自己手撸个rpc替换掉试试（但是这样可能就用不了lab提供的测试代码了，因为整个集群网络模拟（包括网络故障、拥塞、乱序、节点shotdown和recover）都是基于labrpc的config模拟的）
-- 参考etcd的事件状态机（不过都这样了，为什么不去做pingcap的tingkv呢）
+- 参考etcd的事件状态机（不过都这样了，为什么不去做pingcap的tinykv呢）
 
 
 
